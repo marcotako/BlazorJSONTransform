@@ -1,0 +1,131 @@
+﻿@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject IJSRuntime jsRuntime
+
+<form>
+    <div class="row">
+        <div class="form-group col-6">
+            <label for="originalJsonTextarea">Original JSON</label>
+            <textarea class="form-control" id="originalJsonTextarea" rows="10" @bind="originalJson"></textarea>
+        </div>
+        <div class="form-group col-6">
+            <label for="templateJsonTextarea">Template JSON</label>
+            <textarea class="form-control" id="templateJsonTextarea" rows="10" @bind="templateJson" placeholder="See example in Github project"></textarea>
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-1">
+            <button type="button" class="btn btn-primary" @onclick="Transform">Transform</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="form-group col-12">
+            <label for="resultJsonTextarea">Result JSON</label>
+            <textarea class="form-control" id="resultJsonTextarea" rows="10">@resultJson</textarea>
+        </div>
+    </div>
+</form>
+
+@code {
+    private string originalJson;
+    private string templateJson;
+    private string resultJson;
+
+    private async Task Transform()
+    {
+        JToken jsonObject;
+        if (!TryGetJsonObject(originalJson, out jsonObject))
+        {
+            await jsRuntime.InvokeAsync<object>("alert", "The original JSON is not valid!");
+            return;
+        }
+
+        var templateItems = GetTemplateItems(templateJson);
+        if (templateItems == null)
+        {
+            await jsRuntime.InvokeAsync<object>("alert", "The transform template JSON is not valid!");
+            return;
+        }
+
+        try
+        {
+            var result = new JObject();
+            TransformTemplate(templateItems, jsonObject, ref result);
+            resultJson = result.ToString();
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeAsync<object>("alert", ex.GetBaseException().Message);
+        }
+    }
+
+    private void TransformTemplate(List<TemplateItem> templateItems, JToken jsonObject, ref JObject result)
+    {
+        foreach (var templateItem in templateItems)
+        {
+            if (templateItem.IsFixedValue)
+                if (templateItem.IsArray)
+                    result.Add(templateItem.FieldName, JArray.Parse(templateItem.FixedValue));
+                else
+                    result.Add(templateItem.FieldName, templateItem.FixedValue);
+            else if (templateItem.IsArray)
+            {
+                var tokens = jsonObject.SelectTokens(templateItem.JsonPath);
+                var jsonArray = new JArray();
+                foreach (var token in tokens)
+                {
+                    if (templateItem.Child != null)
+                    {
+                        var childResult = new JObject();
+                        TransformTemplate(templateItem.Child, token, ref childResult);
+                        jsonArray.Add(childResult);
+                    }
+                    else
+                        jsonArray.Add(token);
+                }
+                result.Add(templateItem.FieldName, jsonArray);
+            }
+            else
+            {
+                var token = jsonObject.SelectToken(templateItem.JsonPath);
+                if (templateItem.Child != null)
+                {
+                    var childResult = new JObject();
+                    TransformTemplate(templateItem.Child, token, ref childResult);
+                    result.Add(templateItem.FieldName, childResult);
+                }
+                else
+                    result.Add(templateItem.FieldName, token);
+            }
+        }
+    }
+
+    private bool TryGetJsonObject(string json, out JToken jsonObject)
+    {
+        jsonObject = null;
+        if (string.IsNullOrWhiteSpace(json) || (json[0] != '{' && json[0] != '['))
+            return false;
+
+        try
+        {
+            jsonObject = JToken.Parse(json);
+            return jsonObject.Type == JTokenType.Object || jsonObject.Type == JTokenType.Array;
+        }
+        catch (Exception)  // Typically a JsonReaderException exception if you want to specify.
+        {
+            return false;
+        }
+    }
+
+    private List<TemplateItem> GetTemplateItems(string json)
+    {
+        try
+        {
+            return JsonConvert.DeserializeObject<List<TemplateItem>>(json);
+        }
+        catch (Exception)  // Typically a JsonReaderException exception if you want to specify.
+        {
+            return null;
+        }
+    }
+}
