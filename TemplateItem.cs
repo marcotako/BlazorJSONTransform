@@ -8,6 +8,7 @@ namespace BlazorJSONTransform
     public class TemplateItem
     {
         public string FieldName { get; set; }
+        public string FieldNameJsonPath { get; set; }
         public string JsonPath { get; set; }
         public string FixedValue { get; set; }
         public bool IsArray { get; set; }

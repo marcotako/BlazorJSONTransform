@@ -63,11 +63,15 @@
     {
         foreach (var templateItem in templateItems)
         {
+            string fieldName = templateItem.FieldName;
+            if(!string.IsNullOrWhiteSpace(templateItem.FieldNameJsonPath))
+                fieldName = jsonObject.SelectToken(templateItem.FieldNameJsonPath).ToString();
+
             if (templateItem.IsFixedValue)
                 if (templateItem.IsArray)
-                    result.Add(templateItem.FieldName, JArray.Parse(templateItem.FixedValue));
+                    result.Add(fieldName, JArray.Parse(templateItem.FixedValue));
                 else
-                    result.Add(templateItem.FieldName, templateItem.FixedValue);
+                    result.Add(fieldName, templateItem.FixedValue);
             else if (templateItem.IsArray)
             {
                 var tokens = jsonObject.SelectTokens(templateItem.JsonPath);
@@ -83,7 +87,7 @@
                     else
                         jsonArray.Add(token);
                 }
-                result.Add(templateItem.FieldName, jsonArray);
+                result.Add(fieldName, jsonArray);
             }
             else
             {
@@ -92,10 +96,10 @@
                 {
                     var childResult = new JObject();
                     TransformTemplate(templateItem.Child, token, ref childResult);
-                    result.Add(templateItem.FieldName, childResult);
+                    result.Add(fieldName, childResult);
                 }
                 else
-                    result.Add(templateItem.FieldName, token);
+                    result.Add(fieldName, token);
             }
         }
     }
