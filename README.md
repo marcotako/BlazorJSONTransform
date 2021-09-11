@@ -1,5 +1,5 @@
 ﻿# Blazor JSON Transform
- This is a simple tool to transform JSON to JSON applying a JSON template based on JSONPath expressions and you can use it online here https://gentle-flower-038098c03.azurestaticapps.net/
+ This is a Blazor WebAssembly PoC to transform JSON to JSON applying a JSON template based on JSONPath expressions and you can use it online here https://gentle-flower-038098c03.azurestaticapps.net/
  
  The structure of the template is as follows:
 ```javascript
